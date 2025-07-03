@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Steganography Pentesting Tracker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 text-gray-800">
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 min-h-screen">
+    <!-- Checklist Sidebar -->
+    <aside class="md:col-span-1 bg-white p-4 rounded shadow overflow-y-auto h-screen">
+      <h2 class="text-xl font-bold mb-3">🕵️ Steganography Checklist</h2>
+      <div id="checklist" class="text-sm space-y-1"></div>
+      <button onclick="saveChecklist()" class="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition">Save Progress</button>
+    </aside>
+
+    <!-- Main Tracker -->
+    <main class="md:col-span-2 bg-white p-6 rounded shadow flex flex-col">
+      <h1 class="text-3xl font-bold mb-5">🔍 Stegano Pentesting Tracker</h1>
+      <div class="mb-5 space-y-3">
+        <input id="findingTitle" type="text" placeholder="Finding Title (e.g. Hidden Image in PNG)" class="border rounded px-4 py-2 w-full" />
+        <textarea id="findingDesc" rows="4" placeholder="Details, payloads, extraction commands..." class="border rounded px-4 py-2 w-full resize-none"></textarea>
+        <div class="flex flex-wrap gap-3">
+          <button onclick="addFinding()" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded transition">Add Finding</button>
+          <button onclick="exportFindings()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded transition">Export</button>
+          <label class="relative inline-flex items-center bg-yellow-500 hover:bg-yellow-600 text-white px-5 py-2 rounded cursor-pointer transition">
+            Import
+            <input type="file" class="absolute inset-0 opacity-0 cursor-pointer" onchange="importFindings(event)" />
+          </label>
+          <button onclick="resetReviewed()" class="bg-gray-600 hover:bg-gray-700 text-white px-5 py-2 rounded transition">Reset Reviewed</button>
+          <button onclick="clearAllFindings()" class="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded transition">Clear All</button>
+        </div>
+      </div>
+      <div id="findingsContainer" class="flex-1 overflow-y-auto space-y-5 font-mono text-sm"></div>
+    </main>
+
+    <!-- Notes Sidebar -->
+    <aside class="md:col-span-1 bg-white p-4 rounded shadow overflow-y-auto h-screen flex flex-col">
+      <h2 class="text-xl font-bold mb-3">🗒️ Notes & Tool References</h2>
+      <textarea id="notesBox" placeholder="Add your notes, commands, or tools..." class="w-full h-64 border p-2 rounded resize-none mb-3"></textarea>
+      <button onclick="saveNotes()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition mb-4">Save Notes</button>
+      <div>
+        <h3 class="text-lg font-semibold mb-2">🛠️ Common Steganography Tools & Techniques</h3>
+        <ul class="list-disc list-inside text-sm space-y-1">
+          <li>steghide (Hide/extract data from images/audio)</li>
+          <li>zsteg (PNG & BMP steg detection)</li>
+          <li>binwalk (Analyze and extract embedded files)</li>
+          <li>exiftool (Metadata analysis)</li>
+          <li>strings (Extract readable text from binaries)</li>
+          <li>outguess (JPEG steganography)</li>
+          <li>stegsolve (Analyze images visually)</li>
+          <li>stegseek (Stegano tool for various formats)</li>
+          <li>deep sound (Hide data in audio files)</li>
+          <li>openstego (GUI steganography tool)</li>
+        </ul>
+      </div>
+    </aside>
+  </div>
+
+  <script>
+    const checklistItems = [
+      "Analyze file metadata for suspicious info",
+      "Check for hidden files inside archives",
+      "Run steghide to extract hidden data",
+      "Use zsteg to detect PNG/BMP steg",
+      "Scan with binwalk for embedded data",
+      "Extract readable strings",
+      "Visual analysis with stegsolve",
+      "Check for LSB steganography",
+      "Inspect audio files for embedded data",
+      "Look for suspicious payload patterns"
+    ];
+
+    function renderChecklist() {
+      const container = document.getElementById("checklist");
+      container.innerHTML = '';
+      const saved = JSON.parse(localStorage.getItem("steganoChecklist") || '{}');
+      checklistItems.forEach((item, i) => {
+        const id = `stegano-item-${i}`;
+        const checked = saved[id] ? 'checked' : '';
+        container.innerHTML += `<label class="block cursor-pointer"><input type="checkbox" id="${id}" ${checked} class="mr-2">${item}</label>`;
+      });
+      checklistItems.forEach((_, i) => {
+        const checkbox = document.getElementById(`stegano-item-${i}`);
+        checkbox.addEventListener('change', saveChecklist);
+      });
+    }
+
+    function saveChecklist() {
+      const saved = {};
+      checklistItems.forEach((_, i) => {
+        const id = `stegano-item-${i}`;
+        saved[id] = document.getElementById(id).checked;
+      });
+      localStorage.setItem("steganoChecklist", JSON.stringify(saved));
+    }
+
+    let findings = JSON.parse(localStorage.getItem("steganoFindings") || "[]");
+
+    function saveFindings() {
+      localStorage.setItem("steganoFindings", JSON.stringify(findings));
+      renderFindings();
+    }
+
+    function addFinding() {
+      const title = document.getElementById("findingTitle").value.trim();
+      const desc = document.getElementById("findingDesc").value.trim();
+      if (!title || !desc) {
+        alert("Please enter both title and details.");
+        return;
+      }
+      findings.push({ title, desc, reviewed: false });
+      document.getElementById("findingTitle").value = '';
+      document.getElementById("findingDesc").value = '';
+      saveFindings();
+    }
+
+    function toggleReviewed(index) {
+      findings[index].reviewed = !findings[index].reviewed;
+      saveFindings();
+    }
+
+    function deleteFinding(index) {
+      if (confirm("Delete this finding?")) {
+        findings.splice(index, 1);
+        saveFindings();
+      }
+    }
+
+    function resetReviewed() {
+      if (confirm("Mark all findings as unreviewed?")) {
+        findings.forEach(f => f.reviewed = false);
+        saveFindings();
+      }
+    }
+
+    function clearAllFindings() {
+      if (confirm("Clear all findings?")) {
+        findings = [];
+        saveFindings();
+      }
+    }
+
+    function exportFindings() {
+      const blob = new Blob([JSON.stringify(findings, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "stegano_findings.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function importFindings(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const data = JSON.parse(e.target.result);
+          if (Array.isArray(data)) {
+            findings = data;
+            saveFindings();
+          } else {
+            alert("Invalid JSON format.");
+          }
+        } catch {
+          alert("Failed to parse JSON.");
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function renderFindings() {
+      const container = document.getElementById("findingsContainer");
+      container.innerHTML = '';
+      findings.forEach((finding, i) => {
+        const div = document.createElement("div");
+        div.className = `border-l-4 p-4 rounded ${finding.reviewed ? 'bg-green-100 border-green-500' : 'bg-white border-gray-300'}`;
+
+        const title = document.createElement("h3");
+        title.className = "text-lg font-semibold";
+        title.textContent = finding.title;
+
+        const desc = document.createElement("pre");
+        desc.className = "whitespace-pre-wrap break-words text-sm mt-1 font-mono";
+        desc.textContent = finding.desc;
+
+        const actions = document.createElement("div");
+        actions.className = "mt-3 space-x-3";
+        actions.innerHTML = `
+          <button onclick="toggleReviewed(${i})" class="px-4 py-1 rounded text-white text-sm transition ${
+            finding.reviewed ? 'bg-gray-700 hover:bg-gray-800' : 'bg-green-600 hover:bg-green-700'
+          }">
+            ${finding.reviewed ? 'Mark Unreviewed' : 'Mark Reviewed'}
+          </button>
+          <button onclick="deleteFinding(${i})" class="px-4 py-1 rounded bg-red-600 hover:bg-red-700 text-white text-sm transition">Delete</button>
+        `;
+
+        div.appendChild(title);
+        div.appendChild(desc);
+        div.appendChild(actions);
+
+        container.appendChild(div);
+      });
+    }
+
+    const notesBox = document.getElementById("notesBox");
+    notesBox.value = localStorage.getItem("steganoNotes") || "";
+    function debounce(func, delay) {
+      let timeout;
+      return function (...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), delay);
+      };
+    }
+    notesBox.addEventListener('input', debounce(() => {
+      localStorage.setItem("steganoNotes", notesBox.value);
+    }, 500));
+
+    function saveNotes() {
+      localStorage.setItem("steganoNotes", notesBox.value);
+      alert("Notes saved!");
+    }
+
+    renderChecklist();
+    renderFindings();
+  </script>
+
+  <footer class="text-center mt-5 py-4 bg-gray-50 border-t border-gray-300">
+    <p class="mb-1 text-lg">
+      🕵️ Made with <span class="text-red-500">❤️</span> by
+      <a href="https://github.com/nemocyberworld/" target="_blank" class="font-semibold hover:underline">Captain Nemo</a>
+    </p>
+    <p class="text-sm">
+      Powered by
+      <a href="https://hacktolive.net" target="_blank" class="font-semibold hover:underline">HackToLive</a>
+    </p>
+  </footer>
+</body>
+</html>
